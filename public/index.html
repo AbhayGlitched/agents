@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Automation Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Left Panel - Chat -->
+        <div class="w-1/2 bg-white p-4 flex flex-col shadow-lg">
+            <h1 class="text-2xl font-bold mb-4">AI Browser Chat</h1>
+            
+            <!-- Chat Messages -->
+            <div id="chatMessages" class="flex-1 overflow-y-auto mb-4 space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div class="bg-blue-100 p-3 rounded-lg max-w-[80%]">
+                    <p class="font-semibold">Assistant:</p>
+                    <p>Hi! I'm ready to help you automate YouTube. Try asking me to:</p>
+                    <ul class="list-disc ml-4 mt-2">
+                        <li>Search for a video</li>
+                        <li>Click specific elements</li>
+                        <li>Type in the search bar</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Chat Input -->
+            <div class="flex gap-2 p-4 border-t">
+                <input type="text" id="messageInput" 
+                    class="flex-1 p-3 border rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="Tell me what to do on YouTube..." autocomplete="off">
+                <button id="sendButton" 
+                    class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors font-medium">
+                    Send
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel - Browser View -->
+        <div class="w-1/2 p-4 bg-gray-200 shadow-lg">
+            <h2 class="text-xl font-bold mb-4">Browser View</h2>
+            <div class="w-full h-[calc(100%-2rem)] bg-white rounded-lg shadow-lg overflow-hidden">
+                <img id="screenshot" class="w-full h-full object-contain" alt="Browser screenshot">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const screenshot = document.getElementById('screenshot');
+        
+        let isProcessing = false;
+
+        function addMessage(text, isUser = false) {
+            const div = document.createElement('div');
+            div.className = isUser ? 
+                'bg-blue-500 text-white p-3 rounded-lg ml-auto max-w-[80%]' :
+                'bg-blue-100 p-3 rounded-lg max-w-[80%]';
+            
+            const role = document.createElement('p');
+            role.className = 'font-semibold';
+            role.textContent = isUser ? 'You:' : 'Assistant:';
+            
+            const content = document.createElement('p');
+            content.textContent = text;
+            
+            div.appendChild(role);
+            div.appendChild(content);
+            
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
+        }
+
+        async function updateScreenshot() {
+            try {
+                const response = await fetch('/api/screenshot');
+                const data = await response.json();
+                if (data.screenshot) {
+                    screenshot.src = `data:image/jpeg;base64,${data.screenshot}`;
+                }
+            } catch (error) {
+                console.error('Screenshot error:', error);
+            }
+        }
+
+        async function sendMessage() {
+            if (isProcessing) return;
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            isProcessing = true;
+            sendButton.disabled = true;
+            sendButton.classList.add('opacity-50');
+            
+            addMessage(message, true);
+            messageInput.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, username: 'YourUsername' }) // Replace with actual username
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`);
+                } else {
+                    addMessage(data.response);
+                    await updateScreenshot();
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                sendButton.disabled = false;
+                sendButton.classList.remove('opacity-50');
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !isProcessing) sendMessage();
+        });
+
+        // Initial screenshot
+        updateScreenshot();
+        // Update screenshot every 2 seconds
+        setInterval(updateScreenshot, 2000);
+    </script>
+</body>
+</html>
