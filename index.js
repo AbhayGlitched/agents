@@ -1,5 +1,5 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright'); // Import Playwright
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
@@ -108,9 +108,9 @@ async function initBrowser(mode = 'headless') {
     if (browser) await browser.close();
     
     browserMode = mode;
-    browser = await puppeteer.launch({
+    browser = await chromium.launch({
         headless: mode === 'headless',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox' , '--disable-gpu']
     });
     
     page = await browser.newPage();
@@ -125,9 +125,10 @@ async function initBrowser(mode = 'headless') {
         }
     });
 
-    await page.setViewport({ width: 1280, height: 800 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('https://www.youtube.com');
 }
+
 async function takeScreenshot() {
     return await page.screenshot({ encoding: 'base64' });
 }
@@ -155,7 +156,7 @@ COMMAND: {
     // For navigate:
     "url": "string"
 }
-
+    3. for searching  on youtube prefer url query method-- like type in the search page url directly
 Focus on accuracy and user experience.`;
 
         const result = await model.generateContent([
